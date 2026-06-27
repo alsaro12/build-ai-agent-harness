@@ -1,0 +1,21 @@
+{
+  "name": "teensycode-agent-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "agent": "node --env-file=.env.local --import tsx index.ts",
+    "chatbot": "node --env-file=.env.local --import tsx index.ts --no-tools",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ai": "^6.0.83",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

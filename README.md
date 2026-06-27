@@ -1,0 +1,53 @@
+# TeensyCode Agent Harness
+
+Proyecto local para el curso:
+
+https://vercel.com/academy/build-ai-agent-harness
+
+## Lesson 1: From Chat to Agent
+
+Esta primera version implementa:
+
+- `ToolLoopAgent`
+- modo chatbot sin tools
+- tool `read`
+- lineas numeradas
+- `offset` y `limit`
+- limite de 500 lineas por lectura
+- bloqueo de lectura fuera del working directory
+
+## Scripts
+
+Chatbot sin tools:
+
+```bash
+pnpm chatbot . "What files are in this project?"
+```
+
+Agente con `read`:
+
+```bash
+pnpm agent . "Read package.json"
+```
+
+Type-check:
+
+```bash
+pnpm type-check
+```
+
+## Environment
+
+Para ejecutar el agente con AI Gateway hace falta una credencial valida.
+
+El curso menciona:
+
+```txt
+AI_GATEWAY_API_KEY
+```
+
+Esta variable se carga desde `.env.local` con los scripts `pnpm agent` y `pnpm chatbot`.
+
+En proyectos Vercel tambien se puede usar OIDC con `vercel env pull`.
+
+Si AI Gateway responde `customer_verification_required`, Vercel requiere agregar una tarjeta valida para desbloquear los free credits del AI Gateway.
