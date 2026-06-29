@@ -211,6 +211,21 @@ Esta vigesima version implementa:
 - limite de 5 steps para exploracion
 - errores del subagente devueltos como string al parent
 
+## Lesson 21: Executor Subagent
+
+Esta vigesimoprimera version implementa:
+
+- `subagentType` en la tool `task`
+- routing entre `explorer` y `executor`
+- seccion `# Delegation` en el prompt del parent
+- `explorer` como default para mantener compatibilidad
+- executor con `ToolLoopAgent`
+- executor con `read`, `grep` y `bash` delegado
+- modelo `anthropic/claude-sonnet-4-6`
+- limite de 15 steps para ejecucion
+- trust list acotada: `npm test`, `npm run build`, `npx tsc`
+- errores del executor devueltos como string al parent
+
 ## Scripts
 
 Chatbot sin tools:

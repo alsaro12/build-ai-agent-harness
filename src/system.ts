@@ -21,6 +21,15 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 - Use bash only for shell-command requests or tasks not covered by other tools.
 - If a requested command is unsafe, call bash with the exact command and report the block message honestly.`);
 
+  if (ctx.toolNames.includes("task")) {
+    sections.push(`
+# Delegation
+- Use task for delegated subagent work.
+- If the user asks to delegate to an explorer, call task with subagentType "explorer".
+- If the user asks to delegate to an executor, call task with subagentType "executor".
+- Do not replace an explicit executor delegation with a direct bash call.`);
+  }
+
   if (ctx.gitBranch) {
     sections.push(`- Current branch: ${ctx.gitBranch}`);
   }
