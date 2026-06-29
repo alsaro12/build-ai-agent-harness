@@ -29,6 +29,7 @@ const lifecycle: SandboxLifecycle = {};
 await lifecycle.afterStart?.(sandbox);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
+const MAX_BASH_CHARS = 5000;
 const SAFE_PREFIXES = [
   "ls",
   "cat",
@@ -80,6 +81,14 @@ function formatGrepOutput(stdout: string): string {
   return truncated
     ? `${output}\n... (${lines.length} total, showing first ${MAX_MATCHES})`
     : `${output}\n... (${lines.length} total matches)`;
+}
+
+function formatBashOutput(stdout: string): string {
+  if (stdout.length <= MAX_BASH_CHARS) {
+    return stdout;
+  }
+
+  return `${stdout.slice(-MAX_BASH_CHARS)}\n... (truncated, showing last ${MAX_BASH_CHARS} chars)`;
 }
 
 type ApprovalConfig =
@@ -246,7 +255,7 @@ WHEN NOT TO USE: reading a known file's contents (use read instead), searching f
 
 DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, destructive commands, package installation, writes, deletes, moves, chmod/chown, sudo, or commands outside the working directory.
 
-USAGE: command is a single shell string. The active approval policy decides whether it can run. Interactive mode allows safe prefixes (${SAFE_PREFIXES.join(", ")}) and blocks everything else. Background mode runs without approval. Delegated mode only runs trusted prefixes. Execution timeout depends on the injected execution backend.
+USAGE: command is a single shell string. The active approval policy decides whether it can run. Interactive mode allows safe prefixes (${SAFE_PREFIXES.join(", ")}) and blocks everything else. Background mode runs without approval. Delegated mode only runs trusted prefixes. Output is capped at ${MAX_BASH_CHARS} characters, keeping the tail. Execution timeout depends on the injected execution backend.
 
 EXAMPLES:
   - List files: command "ls -la"
@@ -262,12 +271,13 @@ EXAMPLES:
       }
 
       const { stdout, exitCode } = await operations.exec(command);
+      const output = formatBashOutput(stdout || "(no output)");
 
       if (exitCode !== 0) {
-        return `Exit ${exitCode}: ${stdout || "(no output)"}`;
+        return `Exit ${exitCode}: ${output}`;
       }
 
-      return stdout || "(no output)";
+      return output;
     },
   });
 }

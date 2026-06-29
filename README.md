@@ -175,6 +175,18 @@ Esta decimosexta version implementa:
 - guard para la primera llamada sin `options.messages`
 - telemetria para verificar que el crecimiento de input tokens se aplana
 
+## Lesson 17: Tool Output Design
+
+Esta decimoseptima version implementa:
+
+- cap explicito de `read` en 500 lineas
+- paginacion de `read` con `offset` y `limit`
+- cap explicito de `grep` en 50 matches
+- sufijo visible de truncation/total en `grep`
+- cap de `bash` en 5,000 caracteres
+- salida de `bash` truncada por cola para preservar errores finales
+- mensajes visibles de truncation para que el modelo pueda paginar o acotar
+
 ## Scripts
 
 Chatbot sin tools:
