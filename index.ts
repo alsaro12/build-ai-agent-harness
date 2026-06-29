@@ -12,6 +12,27 @@ const cwd = resolve(filteredArgs[0] || process.cwd());
 const prompt = filteredArgs.slice(1).join(" ") || "Hello!";
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
+const SAFE_PREFIXES = [
+  "ls",
+  "cat",
+  "echo",
+  "pwd",
+  "which",
+  "find",
+  "head",
+  "tail",
+  "wc",
+  "git log",
+  "git status",
+  "git diff",
+];
+const DANGEROUS_COMMAND_PATTERNS = [
+  /[;&|`]/,
+  /\$\(/,
+  /\b(rm|sudo|chmod|chown|mv|cp|mkdir|touch)\b/,
+  /\bfind\b[\s\S]*\b-exec\b/,
+  /\b(npm|pnpm|yarn|bun)\s+(install|i|add|remove|uninstall|dlx|exec)\b/,
+];
 
 function resolveProjectPath(filePath: string): string {
   const abs = resolve(cwd, filePath);
@@ -42,6 +63,26 @@ function formatGrepOutput(stdout: string): string {
   return truncated
     ? `${output}\n... (${lines.length} total, showing first ${MAX_MATCHES})`
     : `${output}\n... (${lines.length} total matches)`;
+}
+
+function matchesSafePrefix(command: string): boolean {
+  return SAFE_PREFIXES.some(
+    (prefix) => command === prefix || command.startsWith(`${prefix} `),
+  );
+}
+
+function isSafe(command: string): boolean {
+  const trimmed = command.trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  if (DANGEROUS_COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    return false;
+  }
+
+  return matchesSafePrefix(trimmed);
 }
 
 const read = tool({
@@ -136,13 +177,58 @@ EXAMPLES:
   },
 });
 
+const bash = tool({
+  description: `Execute a safe shell command in the working directory. Returns stdout or a clear block message.
+WHEN TO USE: listing files, checking current directory, checking git status/log/diff, counting files, inspecting command availability, or handling an explicit user request to run a shell command.
+WHEN NOT TO USE: reading a known file's contents (use read instead), searching file contents or patterns (use grep instead).
+DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, or commands outside the working directory.
+EXAMPLES:
+  - List files: command "ls -la"
+  - Show current directory: command "pwd"
+  - Check git state: command "git status --short"
+  - Test whether a destructive command is allowed: command "rm -rf node_modules"`,
+  inputSchema: z.object({
+    command: z.string().describe("Shell command to execute"),
+  }),
+  execute: async ({ command }) => {
+    if (!isSafe(command)) {
+      return `Blocked: "${command}" requires approval. Only safe commands (${SAFE_PREFIXES.join(", ")}) run automatically.`;
+    }
+
+    try {
+      const stdout = execSync(command, {
+        cwd,
+        encoding: "utf-8",
+        timeout: 30_000,
+      });
+
+      return stdout || "(no output)";
+    } catch (error) {
+      const stdout =
+        error instanceof Error && "stdout" in error
+          ? String(error.stdout || "")
+          : "";
+      const stderr =
+        error instanceof Error && "stderr" in error
+          ? String(error.stderr || "")
+          : "";
+      const status =
+        error instanceof Error && "status" in error ? String(error.status) : "1";
+      const output = stdout || stderr || String(error);
+
+      return `Exit ${status}: ${output}`;
+    }
+  },
+});
+
 const agent = new ToolLoopAgent({
   model: "anthropic/claude-haiku-4-5",
   instructions: `You are a coding agent.
 Working directory: ${cwd}
 
-Use grep to search across files. Use read to inspect a specific known file.`,
-  tools: noTools ? {} : { read, grep },
+Use grep to search across files. Use read to inspect a specific known file.
+Use bash for shell-command requests. If a requested command is unsafe, call bash with the exact command and report the block message honestly.`,
+  tools: noTools ? {} : { read, grep, bash },
   stopWhen: stepCountIs(10),
 });
 

@@ -29,6 +29,18 @@ Esta segunda version implementa:
 - reporte del total de matches
 - contrato de descripcion para `read` y `grep`
 
+## Lesson 3: Completing the Toolbox
+
+Esta tercera version implementa:
+
+- tool `bash`
+- allowlist `SAFE_PREFIXES`
+- bloqueo de comandos peligrosos
+- bloqueo de pipelines y command chaining
+- ejecucion dentro del working directory
+- timeout de 30 segundos
+- mensaje explicito cuando un comando requiere aprobacion
+
 ## Scripts
 
 Chatbot sin tools:
@@ -47,6 +59,13 @@ Agente con `grep`:
 
 ```bash
 pnpm agent . "Find all TODO comments in this project"
+```
+
+Agente con `bash`:
+
+```bash
+pnpm agent . "List all files in this directory"
+pnpm agent . "Run the command: rm -rf node_modules"
 ```
 
 Type-check:
