@@ -83,6 +83,18 @@ Esta septima version implementa:
 - restriccion de cambios minimos, reutilizacion de patrones y no agregar dependencias sin preguntar
 - interpolacion del working directory con `${cwd}`
 
+## Lesson 8: Dynamic Prompt Construction
+
+Esta octava version implementa:
+
+- `src/system.ts`
+- interface `PromptContext`
+- funcion pura `buildSystemPrompt(ctx)`
+- construccion del prompt desde contexto runtime
+- `sandboxType`, `toolNames`, `gitBranch` opcional y `projectContext` opcional
+- `index.ts` usa `instructions` generado en vez de un string inline
+- `tools` y `activeTools` separan herramientas disponibles de herramientas activas
+
 ## Scripts
 
 Chatbot sin tools:
