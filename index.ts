@@ -53,6 +53,11 @@ const DANGEROUS_COMMAND_PATTERNS = [
   /\b(npm|pnpm|yarn|bun)\s+(install|i|add|remove|uninstall|dlx|exec)\b/,
 ];
 const EXECUTOR_TRUSTED_PREFIXES = ["npm test", "npm run build", "npx tsc"];
+const SPAWN_PERMISSIONS: Record<string, Array<"explorer" | "executor">> = {
+  orchestrator: ["explorer", "executor"],
+  executor: ["explorer"],
+  explorer: [],
+};
 
 function resolveProjectPath(filePath: string): string {
   const abs = resolve(cwd, filePath);
@@ -284,6 +289,89 @@ EXAMPLES:
   });
 }
 
+function canSpawn(
+  parentRole: string,
+  subagentType: "explorer" | "executor",
+): boolean {
+  return SPAWN_PERMISSIONS[parentRole]?.includes(subagentType) ?? false;
+}
+
+function buildExplorer(
+  taskSandbox: Sandbox,
+  parentTools: { read: typeof read; grep: typeof grep },
+) {
+  const model = "anthropic/claude-haiku-4-5";
+  const stepBudget = 5;
+
+  return new ToolLoopAgent({
+    model,
+    instructions: `You are an explorer subagent. Investigate the request and report back concisely.
+Working directory: ${taskSandbox.workingDirectory}
+
+Rules:
+- Use read and grep only.
+- Do not attempt to modify files.
+- Do not run shell commands.
+- Do not ask the user questions.
+- Return only findings, relevant file paths, and a concise summary.`,
+    tools: { read: parentTools.read, grep: parentTools.grep },
+    stopWhen: stepCountIs(stepBudget),
+  });
+}
+
+function buildExecutor(
+  taskSandbox: Sandbox,
+  parentTools: { read: typeof read; grep: typeof grep },
+) {
+  const model = "anthropic/claude-sonnet-4-6";
+  const stepBudget = 15;
+  const executorBash = createBashTool(
+    taskSandbox,
+    createApproval({
+      mode: "delegated",
+      trust: EXECUTOR_TRUSTED_PREFIXES,
+    }),
+  );
+
+  return new ToolLoopAgent({
+    model,
+    instructions: `You are an executor subagent. Follow the delegated task precisely.
+Working directory: ${taskSandbox.workingDirectory}
+
+Rules:
+- Use read and grep only for context required by the task.
+- Use bash only for delegated trusted verification commands.
+- Do not ask the user questions.
+- Do not install dependencies.
+- Do not attempt destructive commands.
+- Stop and report any blocked command or missing requirement.
+- Return only changes made, verification run, relevant file paths, and remaining issues.`,
+    tools: {
+      read: parentTools.read,
+      grep: parentTools.grep,
+      bash: executorBash,
+    },
+    stopWhen: stepCountIs(stepBudget),
+  });
+}
+
+async function runSubagent(
+  role: "Explorer" | "Executor",
+  generate: () => Promise<{ text: string; steps: { length: number } }>,
+) {
+  try {
+    const { text, steps } = await generate();
+
+    return text
+      ? `[${role}: ${steps.length} steps]\n${text}`
+      : `(no response from ${role})`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    return `${role} error: ${message}`;
+  }
+}
+
 function createTaskTool(
   taskSandbox: Sandbox,
   parentTools: { read: typeof read; grep: typeof grep },
@@ -297,11 +385,11 @@ ROLES:
 
 WHEN TO USE: investigating a codebase or finding patterns across many files (explorer), or delegating a precise implementation/verification task after the parent has decided what should happen (executor).
 
-WHEN NOT TO USE: ambiguous requirements, asking the user questions, deciding architecture, or handling a small direct lookup the parent can do in one or two tool calls.
+WHEN NOT TO USE: ambiguous requirements (ask the user directly), architectural decisions (the parent decides), or a small direct lookup/change the parent can do itself.
 
 DO NOT USE FOR: destructive actions, package installs, migrations, broad unsupervised changes, or transferring user-question responsibility to a subagent.
 
-USAGE: description must be specific. Use subagentType "explorer" for research and "executor" for precise action. The executor can only run delegated trusted bash prefixes: ${EXECUTOR_TRUSTED_PREFIXES.join(", ")}.`,
+USAGE: description must be specific. Use subagentType "explorer" for research and "executor" for precise action. The executor can only run delegated trusted bash prefixes: ${EXECUTOR_TRUSTED_PREFIXES.join(", ")}. Spawn permission checks can be added with canSpawn(parentRole, subagentType) once parent roles are tracked.`,
     inputSchema: z.object({
       description: z
         .string()
@@ -313,78 +401,18 @@ USAGE: description must be specific. Use subagentType "explorer" for research an
     }),
     execute: async ({ description, subagentType }) => {
       if (subagentType === "executor") {
-        const executorBash = createBashTool(
-          taskSandbox,
-          createApproval({
-            mode: "delegated",
-            trust: EXECUTOR_TRUSTED_PREFIXES,
-          }),
+        const executor = buildExecutor(taskSandbox, parentTools);
+
+        return runSubagent("Executor", () =>
+          executor.generate({ prompt: description }),
         );
-
-        const executor = new ToolLoopAgent({
-          model: "anthropic/claude-sonnet-4-6",
-          instructions: `You are an executor subagent. Follow the delegated task precisely.
-Working directory: ${taskSandbox.workingDirectory}
-
-Rules:
-- Use read and grep only for context required by the task.
-- Use bash only for delegated trusted verification commands.
-- Do not ask the user questions.
-- Do not install dependencies.
-- Do not attempt destructive commands.
-- Stop and report any blocked command or missing requirement.
-- Return only changes made, verification run, relevant file paths, and remaining issues.`,
-          tools: {
-            read: parentTools.read,
-            grep: parentTools.grep,
-            bash: executorBash,
-          },
-          stopWhen: stepCountIs(15),
-        });
-
-        try {
-          const { text, steps } = await executor.generate({
-            prompt: description,
-          });
-
-          return text
-            ? `[Executor: ${steps.length} steps]\n${text}`
-            : "(no response from executor)";
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-
-          return `Executor error: ${message}`;
-        }
       }
 
-      const explorer = new ToolLoopAgent({
-        model: "anthropic/claude-haiku-4-5",
-        instructions: `You are an explorer subagent. Investigate the request and report back concisely.
-Working directory: ${taskSandbox.workingDirectory}
+      const explorer = buildExplorer(taskSandbox, parentTools);
 
-Rules:
-- Use read and grep only.
-- Do not attempt to modify files.
-- Do not run shell commands.
-- Do not ask the user questions.
-- Return only findings, relevant file paths, and a concise summary.`,
-        tools: { read: parentTools.read, grep: parentTools.grep },
-        stopWhen: stepCountIs(5),
-      });
-
-      try {
-        const { text, steps } = await explorer.generate({
-          prompt: description,
-        });
-
-        return text
-          ? `[Explorer: ${steps.length} steps]\n${text}`
-          : "(no response from subagent)";
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-
-        return `Subagent error: ${message}`;
-      }
+      return runSubagent("Explorer", () =>
+        explorer.generate({ prompt: description }),
+      );
     },
   });
 }

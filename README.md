@@ -226,6 +226,19 @@ Esta vigesimoprimera version implementa:
 - trust list acotada: `npm test`, `npm run build`, `npx tsc`
 - errores del executor devueltos como string al parent
 
+## Lesson 22: Task Tool
+
+Esta vigesimosegunda version implementa:
+
+- `task` como router explicito de subagentes
+- `buildExplorer(...)` como helper dedicado
+- `buildExecutor(...)` como helper dedicado
+- `runSubagent(...)` para formato y manejo de errores compartido
+- descripcion consolidada para routing entre roles
+- modelo y step budget definidos al inicio de cada helper
+- sketch de `SPAWN_PERMISSIONS` y `canSpawn(...)`
+- ruta clara para agregar un tercer rol sin redisenar la tool
+
 ## Scripts
 
 Chatbot sin tools:
