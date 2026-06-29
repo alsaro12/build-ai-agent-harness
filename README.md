@@ -163,6 +163,18 @@ Esta decimoquinta version implementa:
 - evidencia del crecimiento lineal del contexto en tareas multi-step
 - preparacion para pruning de resultados en el siguiente capitulo
 
+## Lesson 16: Pruning Old Results
+
+Esta decimosexta version implementa:
+
+- import de `pruneMessages`
+- hook `prepareCall`
+- pruning de tool calls/results viejos
+- estrategia `toolCalls: "before-last-3-messages"`
+- preservacion de `...options` antes de sobreescribir `messages`
+- guard para la primera llamada sin `options.messages`
+- telemetria para verificar que el crecimiento de input tokens se aplana
+
 ## Scripts
 
 Chatbot sin tools:

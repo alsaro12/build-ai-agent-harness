@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { ToolLoopAgent, stepCountIs, tool } from "ai";
+import { ToolLoopAgent, pruneMessages, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
@@ -291,7 +291,16 @@ const agent = new ToolLoopAgent({
   model: "anthropic/claude-haiku-4-5",
   instructions,
   tools: activeTools,
-  stopWhen: stepCountIs(10),
+  stopWhen: stepCountIs(15),
+  prepareCall: async (options) => ({
+    ...options,
+    messages: options.messages
+      ? pruneMessages({
+          messages: options.messages,
+          toolCalls: "before-last-3-messages",
+        })
+      : undefined,
+  }),
   onStepFinish: ({ usage, stepNumber }) => {
     console.error(
       `Step ${stepNumber}: ${usage.inputTokens} input, ${usage.outputTokens} output`,
