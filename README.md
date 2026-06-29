@@ -51,6 +51,16 @@ Esta cuarta version implementa:
 - seccion `USAGE` con defaults, caps y restricciones
 - negativos duplicados para reducir routing erroneo hacia `bash`
 
+## Lesson 5: Shell Execution with Safety
+
+Esta quinta version implementa:
+
+- interface `BashOperations`
+- factory `createBashTool`
+- backend local `localOps`
+- separacion entre contrato de tool y ejecucion local
+- preparacion para cambiar `execSync` por sandbox mas adelante
+
 ## Scripts
 
 Chatbot sin tools:

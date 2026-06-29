@@ -65,24 +65,8 @@ function formatGrepOutput(stdout: string): string {
     : `${output}\n... (${lines.length} total matches)`;
 }
 
-function matchesSafePrefix(command: string): boolean {
-  return SAFE_PREFIXES.some(
-    (prefix) => command === prefix || command.startsWith(`${prefix} `),
-  );
-}
-
-function isSafe(command: string): boolean {
-  const trimmed = command.trim();
-
-  if (!trimmed) {
-    return false;
-  }
-
-  if (DANGEROUS_COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-    return false;
-  }
-
-  return matchesSafePrefix(trimmed);
+interface BashOperations {
+  exec(command: string): Promise<{ stdout: string; exitCode: number }>;
 }
 
 const read = tool({
@@ -189,8 +173,29 @@ EXAMPLES:
   },
 });
 
-const bash = tool({
-  description: `Execute one safe shell command in the working directory. Returns stdout, exit output, or a clear block message.
+function createBashTool(operations: BashOperations, safePrefixes: string[]) {
+  function matchesSafePrefix(command: string): boolean {
+    return safePrefixes.some(
+      (prefix) => command === prefix || command.startsWith(`${prefix} `),
+    );
+  }
+
+  function isSafe(command: string): boolean {
+    const trimmed = command.trim();
+
+    if (!trimmed) {
+      return false;
+    }
+
+    if (DANGEROUS_COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      return false;
+    }
+
+    return matchesSafePrefix(trimmed);
+  }
+
+  return tool({
+    description: `Execute one safe shell command in the working directory. Returns stdout, exit output, or a clear block message.
 
 WHEN TO USE: listing files, checking current directory, checking git status/log/diff, counting files, inspecting command availability, or handling an explicit user request to run a shell command.
 
@@ -198,21 +203,34 @@ WHEN NOT TO USE: reading a known file's contents (use read instead), searching f
 
 DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, destructive commands, package installation, writes, deletes, moves, chmod/chown, sudo, or commands outside the working directory.
 
-USAGE: command is a single shell string. It must start with one safe prefix: ${SAFE_PREFIXES.join(", ")}. Commands matching dangerous patterns are blocked and return a clear approval-required message. Execution timeout is 30 seconds.
+USAGE: command is a single shell string. It must start with one safe prefix: ${safePrefixes.join(", ")}. Commands matching dangerous patterns are blocked and return a clear approval-required message. Execution timeout depends on the injected execution backend.
 
 EXAMPLES:
   - List files: command "ls -la"
   - Show current directory: command "pwd"
   - Check git state: command "git status --short"
   - Test whether a destructive command is allowed: command "rm -rf node_modules"`,
-  inputSchema: z.object({
-    command: z.string().describe("Shell command to execute"),
-  }),
-  execute: async ({ command }) => {
-    if (!isSafe(command)) {
-      return `Blocked: "${command}" requires approval. Only safe commands (${SAFE_PREFIXES.join(", ")}) run automatically.`;
-    }
+    inputSchema: z.object({
+      command: z.string().describe("Shell command to execute"),
+    }),
+    execute: async ({ command }) => {
+      if (!isSafe(command)) {
+        return `Blocked: "${command}" requires approval. Only safe commands (${safePrefixes.join(", ")}) run automatically.`;
+      }
 
+      const { stdout, exitCode } = await operations.exec(command);
+
+      if (exitCode !== 0) {
+        return `Exit ${exitCode}: ${stdout || "(no output)"}`;
+      }
+
+      return stdout || "(no output)";
+    },
+  });
+}
+
+const localOps: BashOperations = {
+  exec: async (command) => {
     try {
       const stdout = execSync(command, {
         cwd,
@@ -220,7 +238,7 @@ EXAMPLES:
         timeout: 30_000,
       });
 
-      return stdout || "(no output)";
+      return { stdout, exitCode: 0 };
     } catch (error) {
       const stdout =
         error instanceof Error && "stdout" in error
@@ -234,10 +252,12 @@ EXAMPLES:
         error instanceof Error && "status" in error ? String(error.status) : "1";
       const output = stdout || stderr || String(error);
 
-      return `Exit ${status}: ${output}`;
+      return { stdout: output, exitCode: Number(status) || 1 };
     }
   },
-});
+};
+
+const bash = createBashTool(localOps, SAFE_PREFIXES);
 
 const agent = new ToolLoopAgent({
   model: "anthropic/claude-haiku-4-5",
