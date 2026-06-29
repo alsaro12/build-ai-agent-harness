@@ -71,6 +71,18 @@ Esta sexta version implementa:
 - modo default `interactive`
 - flags CLI `--approval` y `--trust` para probar politicas
 
+## Lesson 7: Structuring Agent Instructions
+
+Esta septima version implementa:
+
+- prompt estructurado en `instructions`
+- seccion `# Agency`
+- seccion `# Guardrails`
+- instruccion explicita de actuar con tools en vez de explicar planes hipoteticos
+- preferencia por `grep` para buscar y `read` para leer archivos conocidos
+- restriccion de cambios minimos, reutilizacion de patrones y no agregar dependencias sin preguntar
+- interpolacion del working directory con `${cwd}`
+
 ## Scripts
 
 Chatbot sin tools:
