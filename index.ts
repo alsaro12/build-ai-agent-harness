@@ -292,6 +292,11 @@ const agent = new ToolLoopAgent({
   instructions,
   tools: activeTools,
   stopWhen: stepCountIs(10),
+  onStepFinish: ({ usage, stepNumber }) => {
+    console.error(
+      `Step ${stepNumber}: ${usage.inputTokens} input, ${usage.outputTokens} output`,
+    );
+  },
 });
 
 try {

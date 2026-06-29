@@ -152,6 +152,17 @@ Esta decimocuarta version implementa:
 - cierre del sandbox dentro de `finally`
 - preparacion para setup, teardown, timeout y snapshots en cloud
 
+## Lesson 15: The Problem
+
+Esta decimoquinta version implementa:
+
+- callback `onStepFinish`
+- logging de `usage.inputTokens` por paso
+- logging de `usage.outputTokens` por paso
+- telemetria en `console.error`
+- evidencia del crecimiento lineal del contexto en tareas multi-step
+- preparacion para pruning de resultados en el siguiente capitulo
+
 ## Scripts
 
 Chatbot sin tools:
