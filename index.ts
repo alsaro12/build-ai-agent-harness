@@ -1,8 +1,9 @@
-import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
+import { createLocalSandbox } from "./src/sandbox-local.js";
+import type { Sandbox } from "./src/sandbox.js";
 import { buildSystemPrompt } from "./src/system.js";
 
 const args = process.argv.slice(2);
@@ -18,6 +19,7 @@ const filteredArgs = args.filter(
 
 const cwd = resolve(filteredArgs[0] || process.cwd());
 const prompt = filteredArgs.slice(1).join(" ") || "Hello!";
+const sandbox = createLocalSandbox(cwd);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
 const SAFE_PREFIXES = [
@@ -71,10 +73,6 @@ function formatGrepOutput(stdout: string): string {
   return truncated
     ? `${output}\n... (${lines.length} total, showing first ${MAX_MATCHES})`
     : `${output}\n... (${lines.length} total matches)`;
-}
-
-interface BashOperations {
-  exec(command: string): Promise<{ stdout: string; exitCode: number }>;
 }
 
 type ApprovalConfig =
@@ -155,7 +153,7 @@ EXAMPLES:
   }),
   execute: async ({ path: filePath, offset, limit }) => {
     const abs = resolveProjectPath(filePath);
-    const content = readFileSync(abs, "utf-8");
+    const content = await sandbox.readFile(abs);
     let lines = content.split("\n");
     const startLine = offset || 1;
 
@@ -222,22 +220,16 @@ EXAMPLES:
       shellQuote(target),
     ].join(" ");
 
-    try {
-      const stdout = execSync(cmd, { encoding: "utf-8", timeout: 10_000 });
+    const { stdout } = await sandbox.exec(cmd);
 
-      return formatGrepOutput(stdout);
-    } catch (error) {
-      const stdout =
-        error instanceof Error && "stdout" in error
-          ? String(error.stdout || "")
-          : "";
-
-      return formatGrepOutput(stdout);
-    }
+    return formatGrepOutput(stdout);
   },
 });
 
-function createBashTool(operations: BashOperations, needsApproval: NeedsApproval) {
+function createBashTool(
+  operations: Pick<Sandbox, "exec">,
+  needsApproval: NeedsApproval,
+) {
   return tool({
     description: `Execute one safe shell command in the working directory. Returns stdout, exit output, or a clear block message.
 
@@ -273,36 +265,8 @@ EXAMPLES:
   });
 }
 
-const localOps: BashOperations = {
-  exec: async (command) => {
-    try {
-      const stdout = execSync(command, {
-        cwd,
-        encoding: "utf-8",
-        timeout: 30_000,
-      });
-
-      return { stdout, exitCode: 0 };
-    } catch (error) {
-      const stdout =
-        error instanceof Error && "stdout" in error
-          ? String(error.stdout || "")
-          : "";
-      const stderr =
-        error instanceof Error && "stderr" in error
-          ? String(error.stderr || "")
-          : "";
-      const status =
-        error instanceof Error && "status" in error ? String(error.status) : "1";
-      const output = stdout || stderr || String(error);
-
-      return { stdout: output, exitCode: Number(status) || 1 };
-    }
-  },
-};
-
 const approvalConfig = parseApprovalConfig();
-const bash = createBashTool(localOps, createApproval(approvalConfig));
+const bash = createBashTool(sandbox, createApproval(approvalConfig));
 const tools = { read, grep, bash };
 const activeTools = noTools ? {} : tools;
 const agentsPath = join(cwd, "AGENTS.md");
@@ -310,8 +274,8 @@ const projectContext = existsSync(agentsPath)
   ? readFileSync(agentsPath, "utf-8")
   : undefined;
 const instructions = buildSystemPrompt({
-  workingDirectory: cwd,
-  sandboxType: "local",
+  workingDirectory: sandbox.workingDirectory,
+  sandboxType: sandbox.type,
   toolNames: Object.keys(activeTools),
   projectContext,
 });

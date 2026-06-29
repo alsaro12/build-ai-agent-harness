@@ -116,6 +116,18 @@ Esta decima version implementa:
 - fallback a instrucciones base cuando `AGENTS.md` no existe
 - soporte para instrucciones especificas del proyecto sin cambiar el harness
 
+## Lesson 11: Local Implementation
+
+Esta undecima version implementa:
+
+- interface `Sandbox`
+- backend local `createLocalSandbox(dir)`
+- `readFile` envuelto sobre `readFileSync`
+- `exec` envuelto sobre `execSync` con timeout de 30 segundos
+- errores de `exec` como `{ stdout, exitCode }` en vez de throw
+- `stop` como no-op async
+- tools `read`, `grep` y `bash` usando el sandbox local
+
 ## Scripts
 
 Chatbot sin tools:
