@@ -4,7 +4,7 @@ import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
-import type { Sandbox } from "./src/sandbox.js";
+import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
 import { buildSystemPrompt } from "./src/system.js";
 
 const args = process.argv.slice(2);
@@ -25,6 +25,8 @@ const sandbox =
   sandboxType === "just-bash"
     ? await createJustBashSandbox(cwd)
     : createLocalSandbox(cwd);
+const lifecycle: SandboxLifecycle = {};
+await lifecycle.afterStart?.(sandbox);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
 const SAFE_PREFIXES = [
@@ -302,4 +304,7 @@ try {
 
   console.error(`Agent run failed: ${message}`);
   process.exitCode = 1;
+} finally {
+  await lifecycle.beforeStop?.(sandbox);
+  await sandbox.stop();
 }

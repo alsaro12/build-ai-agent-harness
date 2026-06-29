@@ -140,6 +140,18 @@ Esta duodecima version implementa:
 - ejecucion local por defecto con `SANDBOX` sin configurar
 - paths relativos para que las tools funcionen en ambos backends
 
+## Lesson 14: Lifecycle Hooks
+
+Esta decimocuarta version implementa:
+
+- interface `SandboxLifecycle`
+- hooks opcionales `afterStart`, `beforeStop` y `onTimeout`
+- lifecycle vacio por defecto para mantener local sin cambios
+- llamada a `afterStart` despues de crear el sandbox
+- llamada a `beforeStop` antes de `sandbox.stop()`
+- cierre del sandbox dentro de `finally`
+- preparacion para setup, teardown, timeout y snapshots en cloud
+
 ## Scripts
 
 Chatbot sin tools:
