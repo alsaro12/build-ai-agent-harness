@@ -198,6 +198,19 @@ Esta decimoctava version implementa:
 - `prepareCall` como pipeline: pruning primero, cache control despues
 - telemetria de `cachedInputTokens`
 
+## Lesson 20: Explorer Subagent
+
+Esta vigesima version implementa:
+
+- tool `task` para delegar investigacion
+- subagente explorer con `ToolLoopAgent`
+- explorer fresco por cada llamada
+- explorer con solo `read` y `grep`
+- sin `bash`, sin writes y sin preguntas al usuario
+- modelo `anthropic/claude-haiku-4-5`
+- limite de 5 steps para exploracion
+- errores del subagente devueltos como string al parent
+
 ## Scripts
 
 Chatbot sin tools:

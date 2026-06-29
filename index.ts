@@ -283,9 +283,59 @@ EXAMPLES:
   });
 }
 
+function createTaskTool(parentTools: { read: typeof read; grep: typeof grep }) {
+  return tool({
+    description: `Delegate research to a read-only explorer subagent. Returns a concise research summary.
+
+WHEN TO USE: investigating a codebase, finding patterns across many files, gathering context before deciding what to change, or isolating exploratory work from the parent context.
+
+WHEN NOT TO USE: making code changes, running shell commands, asking the user questions, deciding architecture, or handling a small direct lookup the parent can do in one or two tool calls.
+
+DO NOT USE FOR: writes, edits, bash commands, approvals, destructive actions, user questions, or implementation work.
+
+USAGE: description must be a specific research task. The explorer has only read and grep, uses a 5-step budget, and returns a summary to the parent.`,
+    inputSchema: z.object({
+      description: z
+        .string()
+        .describe("What the read-only explorer subagent should investigate"),
+    }),
+    execute: async ({ description }) => {
+      const explorer = new ToolLoopAgent({
+        model: "anthropic/claude-haiku-4-5",
+        instructions: `You are an explorer subagent. Investigate the request and report back concisely.
+Working directory: ${sandbox.workingDirectory}
+
+Rules:
+- Use read and grep only.
+- Do not attempt to modify files.
+- Do not run shell commands.
+- Do not ask the user questions.
+- Return only findings, relevant file paths, and a concise summary.`,
+        tools: { read: parentTools.read, grep: parentTools.grep },
+        stopWhen: stepCountIs(5),
+      });
+
+      try {
+        const { text, steps } = await explorer.generate({
+          prompt: description,
+        });
+
+        return text
+          ? `[Explorer: ${steps.length} steps]\n${text}`
+          : "(no response from subagent)";
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        return `Subagent error: ${message}`;
+      }
+    },
+  });
+}
+
 const approvalConfig = parseApprovalConfig();
 const bash = createBashTool(sandbox, createApproval(approvalConfig));
-const tools = { read, grep, bash };
+const task = createTaskTool({ read, grep });
+const tools = { read, grep, bash, task };
 const activeTools = noTools ? {} : tools;
 const agentsPath = join(cwd, "AGENTS.md");
 const projectContext = existsSync(agentsPath)
