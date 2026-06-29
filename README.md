@@ -16,6 +16,19 @@ Esta primera version implementa:
 - limite de 500 lineas por lectura
 - bloqueo de lectura fuera del working directory
 
+## Lesson 2: Your First Tools
+
+Esta segunda version implementa:
+
+- tool `grep`
+- busqueda con regex
+- filtro opcional por `path`
+- filtro opcional por `glob`
+- exclusion de `node_modules` y `.git`
+- limite de 50 matches
+- reporte del total de matches
+- contrato de descripcion para `read` y `grep`
+
 ## Scripts
 
 Chatbot sin tools:
@@ -28,6 +41,12 @@ Agente con `read`:
 
 ```bash
 pnpm agent . "Read package.json"
+```
+
+Agente con `grep`:
+
+```bash
+pnpm agent . "Find all TODO comments in this project"
 ```
 
 Type-check:
