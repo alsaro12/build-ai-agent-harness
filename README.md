@@ -128,6 +128,18 @@ Esta undecima version implementa:
 - `stop` como no-op async
 - tools `read`, `grep` y `bash` usando el sandbox local
 
+## Lesson 12: In-Memory Implementation
+
+Esta duodecima version implementa:
+
+- dependencia `just-bash`
+- backend `createJustBashSandbox(dir)`
+- filesystem copy-on-write sobre el proyecto real
+- mount virtual `/home/user/project`
+- selector de backend con `SANDBOX=just-bash`
+- ejecucion local por defecto con `SANDBOX` sin configurar
+- paths relativos para que las tools funcionen en ambos backends
+
 ## Scripts
 
 Chatbot sin tools:
@@ -155,6 +167,7 @@ pnpm agent . "List all files in this directory"
 pnpm agent . "Run the command: rm -rf node_modules"
 pnpm agent --approval=background . "Use the bash tool to run exactly this command: date"
 pnpm agent --approval=delegated --trust=date . "Use the bash tool to run exactly this command: date"
+SANDBOX=just-bash pnpm agent . "Read package.json"
 ```
 
 Type-check:

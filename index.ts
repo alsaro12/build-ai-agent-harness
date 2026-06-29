@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
+import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
 import type { Sandbox } from "./src/sandbox.js";
 import { buildSystemPrompt } from "./src/system.js";
@@ -19,7 +20,11 @@ const filteredArgs = args.filter(
 
 const cwd = resolve(filteredArgs[0] || process.cwd());
 const prompt = filteredArgs.slice(1).join(" ") || "Hello!";
-const sandbox = createLocalSandbox(cwd);
+const sandboxType = process.env.SANDBOX || "local";
+const sandbox =
+  sandboxType === "just-bash"
+    ? await createJustBashSandbox(cwd)
+    : createLocalSandbox(cwd);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
 const SAFE_PREFIXES = [
@@ -52,7 +57,7 @@ function resolveProjectPath(filePath: string): string {
     throw new Error(`Refusing to read outside working directory: ${filePath}`);
   }
 
-  return abs;
+  return rel || ".";
 }
 
 function shellQuote(value: string): string {
