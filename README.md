@@ -41,6 +41,16 @@ Esta tercera version implementa:
 - timeout de 30 segundos
 - mensaje explicito cuando un comando requiere aprobacion
 
+## Lesson 4: Descriptions That Work
+
+Esta cuarta version implementa:
+
+- contrato completo de descripcion para `read`
+- contrato completo de descripcion para `grep`
+- contrato completo de descripcion para `bash`
+- seccion `USAGE` con defaults, caps y restricciones
+- negativos duplicados para reducir routing erroneo hacia `bash`
+
 ## Scripts
 
 Chatbot sin tools:

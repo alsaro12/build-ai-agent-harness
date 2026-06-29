@@ -86,10 +86,16 @@ function isSafe(command: string): boolean {
 }
 
 const read = tool({
-  description: `Read a file from the project. Returns numbered lines.
-WHEN TO USE: viewing the contents of a specific known file, checking configs, reading source code after a path is known.
-WHEN NOT TO USE: searching across files, finding TODOs, locating imports, or discovering where code exists (use grep instead).
-DO NOT USE FOR: running commands, listing directories, broad project exploration, or regex/content search.
+  description: `Read one known project file. Returns numbered lines from that file.
+
+WHEN TO USE: viewing file contents, checking configuration files, reading source code after a path is known, examining specific lines with offset and limit.
+
+WHEN NOT TO USE: searching for patterns across files (use grep instead), listing directories or checking git state (use bash instead), broad project exploration before a path is known (use grep or bash instead).
+
+DO NOT USE FOR: regex/content search, directory listings, command execution, file edits, writes, deletes, or discovering unknown files.
+
+USAGE: path is required and must be relative to the working directory. offset is optional and 1-indexed. limit is optional. Output is capped at ${MAX_LINES} lines.
+
 EXAMPLES:
   - Read package metadata: path "package.json"
   - Inspect compiler config: path "tsconfig.json" limit 80
@@ -129,14 +135,20 @@ EXAMPLES:
 });
 
 const grep = tool({
-  description: `Search file contents using regex. Returns matching lines with file paths and line numbers.
+  description: `Search project file contents using regex. Returns matching lines with file paths and line numbers.
+
 WHEN TO USE: finding patterns across multiple files, locating function definitions, searching imports, finding TODO comments, finding error messages.
-WHEN NOT TO USE: reading a known file once the path is already known (use read instead).
-DO NOT USE FOR: running commands, listing directories, editing files, or opening full files.
+
+WHEN NOT TO USE: reading a known file once the path is already known (use read instead), listing directories or checking git state (use bash instead), running shell commands (use bash instead).
+
+DO NOT USE FOR: opening full files, directory listings, command execution, file edits, writes, deletes, or non-content filesystem discovery.
+
+USAGE: pattern is a required regex string. path is optional and defaults to the working directory. glob is optional and filters matched files, e.g. "*.ts". Results exclude node_modules and .git, and are capped at ${MAX_MATCHES} matches.
+
 EXAMPLES:
   - Find all TODO comments: pattern "TODO" glob "*.ts"
   - Find TypeScript imports: pattern "^import" glob "*.ts"
-  - Find function definitions: pattern "function [A-Za-z0-9_]+" glob "*.ts"`,
+  - Find imports of a package: pattern "from 'ai'" glob "*.ts"`,
   inputSchema: z.object({
     pattern: z.string().describe("Regex pattern to search for"),
     path: z
@@ -178,10 +190,16 @@ EXAMPLES:
 });
 
 const bash = tool({
-  description: `Execute a safe shell command in the working directory. Returns stdout or a clear block message.
+  description: `Execute one safe shell command in the working directory. Returns stdout, exit output, or a clear block message.
+
 WHEN TO USE: listing files, checking current directory, checking git status/log/diff, counting files, inspecting command availability, or handling an explicit user request to run a shell command.
-WHEN NOT TO USE: reading a known file's contents (use read instead), searching file contents or patterns (use grep instead).
-DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, or commands outside the working directory.
+
+WHEN NOT TO USE: reading a known file's contents (use read instead), searching file contents or patterns (use grep instead), modifying project files or installing packages without approval.
+
+DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, destructive commands, package installation, writes, deletes, moves, chmod/chown, sudo, or commands outside the working directory.
+
+USAGE: command is a single shell string. It must start with one safe prefix: ${SAFE_PREFIXES.join(", ")}. Commands matching dangerous patterns are blocked and return a clear approval-required message. Execution timeout is 30 seconds.
+
 EXAMPLES:
   - List files: command "ls -la"
   - Show current directory: command "pwd"
