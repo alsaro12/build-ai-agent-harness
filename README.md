@@ -239,6 +239,19 @@ Esta vigesimosegunda version implementa:
 - sketch de `SPAWN_PERMISSIONS` y `canSpawn(...)`
 - ruta clara para agregar un tercer rol sin redisenar la tool
 
+## Lesson 27: Structured Questions
+
+Esta vigesimoseptima version implementa:
+
+- tool `askUser`
+- schema con `question` y `options`
+- validacion de 2 a 4 opciones
+- formato de pregunta como lista numerada
+- retorno explicito de `(Awaiting user response.)`
+- registro de `askUser` en el toolset del agente
+- seccion `# Handling Ambiguity` en el system prompt
+- protocolo `search first, ask second, act third`
+
 ## Scripts
 
 Chatbot sin tools:

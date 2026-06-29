@@ -34,6 +34,22 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     sections.push(`- Current branch: ${ctx.gitBranch}`);
   }
 
+  if (ctx.toolNames.includes("askUser")) {
+    sections.push(`
+# Handling Ambiguity
+When the task is ambiguous or has multiple valid approaches:
+1. Search the code or docs first to gather enough context for a useful question.
+2. Use askUser to let the user choose. Do NOT guess.
+3. After askUser returns "(Awaiting user response.)", stop and relay the question/options to the user.
+
+Examples:
+- "add authentication" -> search the app shape, then ask which auth strategy to use.
+- "set up a database" -> search the stack, then ask which database/provider to use.
+- "improve the UI" -> inspect the relevant screen, then ask which direction to take.
+
+Specific tasks with file paths, line numbers, exact commands, or precise implementation instructions do not need askUser. Act directly.`);
+  }
+
   sections.push(`
 # Guardrails
 - Prefer simple, minimal changes.

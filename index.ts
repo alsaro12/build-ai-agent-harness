@@ -289,6 +289,38 @@ EXAMPLES:
   });
 }
 
+function createAskUserTool() {
+  return tool({
+    description: `Ask the user a multiple-choice question and return the pending question to the agent.
+
+WHEN TO USE: scoping ambiguous tasks, choosing between multiple valid approaches, resolving a missing requirement before acting, or selecting one option when guessing would cause wrong work.
+
+WHEN NOT TO USE: the task already includes a precise file path, line number, command, or implementation detail; you can gather enough context with read/grep/bash; or the answer is obvious from project files.
+
+DO NOT USE FOR: rhetorical questions, progress updates, open-ended brainstorming, asking more than one question at a time, or avoiding work that can be done safely.
+
+USAGE: ask exactly one question. Provide 2 to 4 concrete options. The harness returns the question as pending; do not continue implementation until the user answers.`,
+    inputSchema: z.object({
+      question: z.string().describe("The single question to ask the user"),
+      options: z
+        .array(z.string())
+        .min(2)
+        .max(4)
+        .describe("Two to four concrete options for the user to choose from"),
+    }),
+    execute: async ({ question, options }) => {
+      const formatted = options
+        .map((option, index) => `${index + 1}. ${option}`)
+        .join("\n");
+      const message = `Question: ${question}\n${formatted}`;
+
+      console.log(`\n${message}\n`);
+
+      return `Asked: "${question}"\nOptions:\n${formatted}\n\n(Awaiting user response.)`;
+    },
+  });
+}
+
 function canSpawn(
   parentRole: string,
   subagentType: "explorer" | "executor",
@@ -420,7 +452,8 @@ USAGE: description must be specific. Use subagentType "explorer" for research an
 const approvalConfig = parseApprovalConfig();
 const bash = createBashTool(sandbox, createApproval(approvalConfig));
 const task = createTaskTool(sandbox, { read, grep });
-const tools = { read, grep, bash, task };
+const askUser = createAskUserTool();
+const tools = { read, grep, bash, task, askUser };
 const activeTools = noTools ? {} : tools;
 const agentsPath = join(cwd, "AGENTS.md");
 const projectContext = existsSync(agentsPath)
