@@ -95,6 +95,17 @@ Esta octava version implementa:
 - `index.ts` usa `instructions` generado en vez de un string inline
 - `tools` y `activeTools` separan herramientas disponibles de herramientas activas
 
+## Lesson 9: Verification Gates
+
+Esta novena version implementa:
+
+- seccion `# Verification` en `buildSystemPrompt`
+- contrato explicito para verificar cambios con checks reales
+- instruccion de correr `npx tsc --noEmit` cuando TypeScript este presente
+- lint, test y build solo si existen y el modo de aprobacion los permite
+- reporte honesto de checks ejecutados, bloqueados y no disponibles
+- prohibicion explicita de decir que tests pasan sin ejecutarlos
+
 ## Scripts
 
 Chatbot sin tools:
