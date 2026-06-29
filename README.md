@@ -61,6 +61,16 @@ Esta quinta version implementa:
 - separacion entre contrato de tool y ejecucion local
 - preparacion para cambiar `execSync` por sandbox mas adelante
 
+## Lesson 6: Approval Gates
+
+Esta sexta version implementa:
+
+- `ApprovalConfig` con modos `interactive`, `background` y `delegated`
+- `createApproval(config)`
+- `createBashTool` recibe una funcion `needsApproval`
+- modo default `interactive`
+- flags CLI `--approval` y `--trust` para probar politicas
+
 ## Scripts
 
 Chatbot sin tools:
@@ -86,6 +96,8 @@ Agente con `bash`:
 ```bash
 pnpm agent . "List all files in this directory"
 pnpm agent . "Run the command: rm -rf node_modules"
+pnpm agent --approval=background . "Use the bash tool to run exactly this command: date"
+pnpm agent --approval=delegated --trust=date . "Use the bash tool to run exactly this command: date"
 ```
 
 Type-check:

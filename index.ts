@@ -6,7 +6,14 @@ import { z } from "zod";
 
 const args = process.argv.slice(2);
 const noTools = args.includes("--no-tools");
-const filteredArgs = args.filter((arg) => arg !== "--no-tools");
+const approvalArg = args.find((arg) => arg.startsWith("--approval="));
+const trustArg = args.find((arg) => arg.startsWith("--trust="));
+const filteredArgs = args.filter(
+  (arg) =>
+    arg !== "--no-tools" &&
+    !arg.startsWith("--approval=") &&
+    !arg.startsWith("--trust="),
+);
 
 const cwd = resolve(filteredArgs[0] || process.cwd());
 const prompt = filteredArgs.slice(1).join(" ") || "Hello!";
@@ -67,6 +74,62 @@ function formatGrepOutput(stdout: string): string {
 
 interface BashOperations {
   exec(command: string): Promise<{ stdout: string; exitCode: number }>;
+}
+
+type ApprovalConfig =
+  | { mode: "interactive" }
+  | { mode: "background" }
+  | { mode: "delegated"; trust: string[] };
+
+type ApprovalInput = {
+  command: string;
+};
+
+type NeedsApproval = (input: ApprovalInput) => boolean;
+
+function startsWithPrefix(command: string, prefix: string): boolean {
+  return command === prefix || command.startsWith(`${prefix} `);
+}
+
+function parseApprovalConfig(): ApprovalConfig {
+  const mode = approvalArg?.slice("--approval=".length) || "interactive";
+
+  if (mode === "background") {
+    return { mode };
+  }
+
+  if (mode === "delegated") {
+    const trust =
+      trustArg
+        ?.slice("--trust=".length)
+        .split(",")
+        .map((prefix) => prefix.trim())
+        .filter(Boolean) || [];
+
+    return { mode, trust };
+  }
+
+  return { mode: "interactive" };
+}
+
+function createApproval(config: ApprovalConfig): NeedsApproval {
+  return ({ command }) => {
+    const trimmed = command.trim();
+
+    if (config.mode === "background") {
+      return false;
+    }
+
+    if (config.mode === "delegated") {
+      return !config.trust.some((prefix) => startsWithPrefix(trimmed, prefix));
+    }
+
+    if (DANGEROUS_COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      return true;
+    }
+
+    return !SAFE_PREFIXES.some((prefix) => startsWithPrefix(trimmed, prefix));
+  };
 }
 
 const read = tool({
@@ -173,27 +236,7 @@ EXAMPLES:
   },
 });
 
-function createBashTool(operations: BashOperations, safePrefixes: string[]) {
-  function matchesSafePrefix(command: string): boolean {
-    return safePrefixes.some(
-      (prefix) => command === prefix || command.startsWith(`${prefix} `),
-    );
-  }
-
-  function isSafe(command: string): boolean {
-    const trimmed = command.trim();
-
-    if (!trimmed) {
-      return false;
-    }
-
-    if (DANGEROUS_COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      return false;
-    }
-
-    return matchesSafePrefix(trimmed);
-  }
-
+function createBashTool(operations: BashOperations, needsApproval: NeedsApproval) {
   return tool({
     description: `Execute one safe shell command in the working directory. Returns stdout, exit output, or a clear block message.
 
@@ -203,7 +246,7 @@ WHEN NOT TO USE: reading a known file's contents (use read instead), searching f
 
 DO NOT USE FOR: silently rewriting blocked commands, bypassing approval, shell pipelines, command chaining, destructive commands, package installation, writes, deletes, moves, chmod/chown, sudo, or commands outside the working directory.
 
-USAGE: command is a single shell string. It must start with one safe prefix: ${safePrefixes.join(", ")}. Commands matching dangerous patterns are blocked and return a clear approval-required message. Execution timeout depends on the injected execution backend.
+USAGE: command is a single shell string. The active approval policy decides whether it can run. Interactive mode allows safe prefixes (${SAFE_PREFIXES.join(", ")}) and blocks everything else. Background mode runs without approval. Delegated mode only runs trusted prefixes. Execution timeout depends on the injected execution backend.
 
 EXAMPLES:
   - List files: command "ls -la"
@@ -214,8 +257,8 @@ EXAMPLES:
       command: z.string().describe("Shell command to execute"),
     }),
     execute: async ({ command }) => {
-      if (!isSafe(command)) {
-        return `Blocked: "${command}" requires approval. Only safe commands (${safePrefixes.join(", ")}) run automatically.`;
+      if (needsApproval({ command })) {
+        return `Blocked: "${command}" requires approval.`;
       }
 
       const { stdout, exitCode } = await operations.exec(command);
@@ -257,7 +300,8 @@ const localOps: BashOperations = {
   },
 };
 
-const bash = createBashTool(localOps, SAFE_PREFIXES);
+const approvalConfig = parseApprovalConfig();
+const bash = createBashTool(localOps, createApproval(approvalConfig));
 
 const agent = new ToolLoopAgent({
   model: "anthropic/claude-haiku-4-5",
