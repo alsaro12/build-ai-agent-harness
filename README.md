@@ -187,6 +187,17 @@ Esta decimoseptima version implementa:
 - salida de `bash` truncada por cola para preservar errores finales
 - mensajes visibles de truncation para que el modelo pueda paginar o acotar
 
+## Lesson 18: Cache Control
+
+Esta decimoctava version implementa:
+
+- helper `addCacheControl(messages)`
+- cache marker `providerOptions.anthropic.cacheControl`
+- mensajes estables marcados como cacheables
+- ultimos dos mensajes sin cache para evitar cachear contexto fresco
+- `prepareCall` como pipeline: pruning primero, cache control despues
+- telemetria de `cachedInputTokens`
+
 ## Scripts
 
 Chatbot sin tools:

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { ToolLoopAgent, pruneMessages, stepCountIs, tool } from "ai";
 import { z } from "zod";
+import { addCacheControl } from "./src/cache.js";
 import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
 import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
@@ -302,18 +303,22 @@ const agent = new ToolLoopAgent({
   instructions,
   tools: activeTools,
   stopWhen: stepCountIs(15),
-  prepareCall: async (options) => ({
-    ...options,
-    messages: options.messages
+  prepareCall: async (options) => {
+    const pruned = options.messages
       ? pruneMessages({
           messages: options.messages,
           toolCalls: "before-last-3-messages",
         })
-      : undefined,
-  }),
+      : undefined;
+
+    return {
+      ...options,
+      messages: pruned ? addCacheControl(pruned) : undefined,
+    };
+  },
   onStepFinish: ({ usage, stepNumber }) => {
     console.error(
-      `Step ${stepNumber}: ${usage.inputTokens} input, ${usage.outputTokens} output`,
+      `Step ${stepNumber}: ${usage.inputTokens} input, ${usage.outputTokens} output, ${usage.cachedInputTokens ?? 0} cached`,
     );
   },
 });
