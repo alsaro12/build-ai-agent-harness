@@ -252,6 +252,18 @@ Esta vigesimoseptima version implementa:
 - seccion `# Handling Ambiguity` en el system prompt
 - protocolo `search first, ask second, act third`
 
+## Lesson 29: Todo Tool
+
+Esta vigesimonovena version implementa:
+
+- tool `todo`
+- acciones `add`, `start`, `complete` y `list`
+- estado en memoria por run
+- estados `pending`, `in_progress` y `completed`
+- ids cortos generados con `crypto.randomUUID()`
+- restriccion de un solo item `in_progress`
+- seccion `# Task Planning` en el system prompt
+
 ## Scripts
 
 Chatbot sin tools:

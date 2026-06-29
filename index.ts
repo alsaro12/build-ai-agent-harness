@@ -59,6 +59,14 @@ const SPAWN_PERMISSIONS: Record<string, Array<"explorer" | "executor">> = {
   explorer: [],
 };
 
+type TodoItem = {
+  id: string;
+  description: string;
+  state: "pending" | "in_progress" | "completed";
+};
+
+const todos: TodoItem[] = [];
+
 function resolveProjectPath(filePath: string): string {
   const abs = resolve(cwd, filePath);
   const rel = relative(cwd, abs);
@@ -321,6 +329,86 @@ USAGE: ask exactly one question. Provide 2 to 4 concrete options. The harness re
   });
 }
 
+function formatTodos() {
+  return (
+    todos
+      .map((item) => `[${item.state}] ${item.id}: ${item.description}`)
+      .join("\n") || "No todos."
+  );
+}
+
+function createTodoTool() {
+  return tool({
+    description: `Manage a task list for multi-step work. Enforces one active item at a time.
+
+WHEN TO USE: tasks with 3+ steps, multiple files, dependent changes, multi-part features, or work where progress must be tracked across several tool calls.
+
+WHEN NOT TO USE: single-file fixes, simple questions, one-step reads, exploratory searches with no concrete outcome, or direct user status updates.
+
+DO NOT USE FOR: replacing actual work with planning, making status updates to the user, tracking trivial tasks, or starting multiple items at once.
+
+USAGE: add creates pending items, start marks one item in_progress, complete marks an item completed, list shows all items. Start rejects if another item is already in_progress.`,
+    inputSchema: z.object({
+      action: z
+        .enum(["add", "start", "complete", "list"])
+        .describe("Todo action to perform"),
+      description: z
+        .string()
+        .optional()
+        .describe("Todo description for add"),
+      id: z
+        .string()
+        .optional()
+        .describe("Todo id for start or complete"),
+    }),
+    execute: async ({ action, description, id }) => {
+      if (action === "add") {
+        const item: TodoItem = {
+          id: crypto.randomUUID().slice(0, 8),
+          description: description ?? "(unnamed)",
+          state: "pending",
+        };
+
+        todos.push(item);
+
+        return `Added: [${item.id}] ${item.description}`;
+      }
+
+      if (action === "start") {
+        const active = todos.find((item) => item.state === "in_progress");
+
+        if (active) {
+          return `Already working on: [${active.id}] ${active.description}. Complete it first.`;
+        }
+
+        const item = todos.find((todo) => todo.id === id);
+
+        if (!item) {
+          return `No todo with id ${id}.`;
+        }
+
+        item.state = "in_progress";
+
+        return `Started: [${item.id}] ${item.description}`;
+      }
+
+      if (action === "complete") {
+        const item = todos.find((todo) => todo.id === id);
+
+        if (!item) {
+          return `No todo with id ${id}.`;
+        }
+
+        item.state = "completed";
+
+        return `Completed: [${item.id}] ${item.description}`;
+      }
+
+      return formatTodos();
+    },
+  });
+}
+
 function canSpawn(
   parentRole: string,
   subagentType: "explorer" | "executor",
@@ -453,7 +541,8 @@ const approvalConfig = parseApprovalConfig();
 const bash = createBashTool(sandbox, createApproval(approvalConfig));
 const task = createTaskTool(sandbox, { read, grep });
 const askUser = createAskUserTool();
-const tools = { read, grep, bash, task, askUser };
+const todo = createTodoTool();
+const tools = { read, grep, bash, task, askUser, todo };
 const activeTools = noTools ? {} : tools;
 const agentsPath = join(cwd, "AGENTS.md");
 const projectContext = existsSync(agentsPath)

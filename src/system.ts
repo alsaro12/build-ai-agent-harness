@@ -50,6 +50,14 @@ Examples:
 Specific tasks with file paths, line numbers, exact commands, or precise implementation instructions do not need askUser. Act directly.`);
   }
 
+  if (ctx.toolNames.includes("todo")) {
+    sections.push(`
+# Task Planning
+Use todo for multi-step implementation work: tasks with 3+ steps, multiple files, dependent changes, or a requested multi-part feature.
+Do not use todo for simple questions, one-step reads, single-file precise fixes, or exploratory searches with no concrete outcome.
+When using todo, add the plan first, start exactly one item, complete it before starting the next, and keep the list current.`);
+  }
+
   sections.push(`
 # Guardrails
 - Prefer simple, minimal changes.
