@@ -106,6 +106,16 @@ Esta novena version implementa:
 - reporte honesto de checks ejecutados, bloqueados y no disponibles
 - prohibicion explicita de decir que tests pasan sin ejecutarlos
 
+## Lesson 10: Project Context
+
+Esta decima version implementa:
+
+- descubrimiento de `AGENTS.md` en el working directory
+- lectura de `AGENTS.md` como UTF-8 cuando existe
+- inyeccion del contenido como `projectContext` en `buildSystemPrompt`
+- fallback a instrucciones base cuando `AGENTS.md` no existe
+- soporte para instrucciones especificas del proyecto sin cambiar el harness
+
 ## Scripts
 
 Chatbot sin tools:

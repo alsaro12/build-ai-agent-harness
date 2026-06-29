@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { buildSystemPrompt } from "./src/system.js";
@@ -305,10 +305,15 @@ const approvalConfig = parseApprovalConfig();
 const bash = createBashTool(localOps, createApproval(approvalConfig));
 const tools = { read, grep, bash };
 const activeTools = noTools ? {} : tools;
+const agentsPath = join(cwd, "AGENTS.md");
+const projectContext = existsSync(agentsPath)
+  ? readFileSync(agentsPath, "utf-8")
+  : undefined;
 const instructions = buildSystemPrompt({
   workingDirectory: cwd,
   sandboxType: "local",
   toolNames: Object.keys(activeTools),
+  projectContext,
 });
 
 const agent = new ToolLoopAgent({
