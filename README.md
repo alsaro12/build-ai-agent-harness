@@ -299,6 +299,17 @@ Esta trigesimosegunda version implementa:
 - shutdown idempotente con `sandbox.stop()`
 - handler `SIGINT` que apaga el sandbox y sale limpio
 
+## Lesson 33: Streaming and Tool Rendering
+
+Esta trigesimotercera version implementa:
+
+- `agent.stream({ prompt })` en vez de `agent.generate(...)`
+- iteracion de `result.fullStream` con `for await`
+- render de `text-delta` hacia stdout en tiempo real
+- render de `tool-call` hacia stderr
+- render de `tool-result` hacia stderr con preview truncado
+- separacion entre respuesta del agente y metadata de herramientas
+
 ## Scripts
 
 Chatbot sin tools:

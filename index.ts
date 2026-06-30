@@ -346,6 +346,21 @@ function formatTodos() {
   );
 }
 
+function preview(value: unknown, maxLength = 100): string {
+  const text =
+    typeof value === "string" ? value : JSON.stringify(value, undefined, 2);
+
+  if (!text) {
+    return "(no output)";
+  }
+
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength)}...`
+    : normalized;
+}
+
 function createTodoTool() {
   return tool({
     description: `Manage a task list for multi-step work. Enforces one active item at a time.
@@ -609,10 +624,25 @@ const agent = new ToolLoopAgent({
 });
 
 try {
-  const { text, steps } = await agent.generate({ prompt });
+  const result = await agent.stream({ prompt });
 
-  console.log(text);
-  console.log(`\n(${steps.length} steps)`);
+  for await (const chunk of result.fullStream) {
+    switch (chunk.type) {
+      case "text-delta":
+        process.stdout.write(chunk.text);
+        break;
+      case "tool-call":
+        console.error(
+          `\n[tool] ${chunk.toolName}(${preview(chunk.input)})`,
+        );
+        break;
+      case "tool-result":
+        console.error(`  -> ${preview(chunk.output)}`);
+        break;
+    }
+  }
+
+  console.log();
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
 
