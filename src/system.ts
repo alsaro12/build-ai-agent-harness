@@ -4,10 +4,16 @@ export interface PromptContext {
   toolNames: string[];
   gitBranch?: string;
   projectContext?: string;
+  verificationCommands?: string[];
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
   const sections: string[] = [];
+  const verificationGates = ctx.verificationCommands?.length
+    ? ctx.verificationCommands
+        .map((command, index) => `${index + 1}. \`${command}\``)
+        .join("\n")
+    : "(no verification commands discovered for this project)";
 
   sections.push(`You are a coding agent working in: ${ctx.workingDirectory}`);
   sections.push(`Sandbox: ${ctx.sandboxType}`);
@@ -69,15 +75,17 @@ When using todo, add the plan first, start exactly one item, complete it before 
 
   sections.push(`
 # Verification
-After making changes, verify your work:
-1. Run \`npx tsc --noEmit\` when TypeScript is present.
-2. Run lint, test, or build commands only if they exist in this project and are allowed by the current approval mode.
-3. Report exactly what you ran, what was blocked, and what was unavailable.
-4. Do NOT inflate partial verification into a blanket success claim.
+After making changes, verify your work by running these gates in order:
+${verificationGates}
 
-Do NOT claim "tests pass" without running them.
-Scope your claims honestly. "Verification was limited because writes were blocked" is honest.
-"All tests pass" when you didn't run them is not.`);
+Run each discovered gate if it is allowed by the current approval mode. Capture the output and report exactly what passed, failed, was blocked, or was unavailable.
+
+Distinguish failures you caused from failures that were already there:
+- "Ran tsc: passed."
+- "Ran npm test: 47 passed, 3 failed. The 3 failures are pre-existing in user.test.ts and unrelated to my changes."
+- "No verification commands were discovered, so verification is limited."
+
+Do NOT claim "tests pass" without running them. Do NOT inflate partial verification into a blanket success claim.`);
 
   if (ctx.projectContext) {
     sections.push(`

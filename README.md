@@ -274,6 +274,18 @@ Esta trigesima version implementa:
 - prohibicion de leer archivos "por si acaso"
 - preservacion del flujo directo a `read` cuando el usuario nombra un archivo especifico
 
+## Lesson 31: Verification Contract
+
+Esta trigesimoprimera version implementa:
+
+- helper `discoverGates(sandbox)`
+- descubrimiento de gates desde `package.json`
+- deteccion de package manager desde `packageManager`
+- orden de verificacion: typecheck, lint, test, build
+- fallback a `npx tsc --noEmit` cuando hay TypeScript sin script de typecheck
+- `verificationCommands` en el contexto del system prompt
+- contrato de claims acotados para distinguir fallas propias de fallas preexistentes
+
 ## Scripts
 
 Chatbot sin tools:

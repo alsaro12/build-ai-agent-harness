@@ -7,6 +7,7 @@ import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
 import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
 import { buildSystemPrompt } from "./src/system.js";
+import { discoverGates } from "./src/verification.js";
 
 const args = process.argv.slice(2);
 const noTools = args.includes("--no-tools");
@@ -548,11 +549,13 @@ const agentsPath = join(cwd, "AGENTS.md");
 const projectContext = existsSync(agentsPath)
   ? readFileSync(agentsPath, "utf-8")
   : undefined;
+const verificationCommands = await discoverGates(sandbox);
 const instructions = buildSystemPrompt({
   workingDirectory: sandbox.workingDirectory,
   sandboxType: sandbox.type,
   toolNames: Object.keys(activeTools),
   projectContext,
+  verificationCommands,
 });
 
 const agent = new ToolLoopAgent({
