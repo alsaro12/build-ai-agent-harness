@@ -310,6 +310,19 @@ Esta trigesimotercera version implementa:
 - render de `tool-result` hacia stderr con preview truncado
 - separacion entre respuesta del agente y metadata de herramientas
 
+## Lesson 35: Skills System
+
+Esta trigesimoquinta version implementa:
+
+- `src/skills.ts`
+- descubrimiento de skills desde carpetas `skills/<name>/SKILL.md`
+- parsing simple de frontmatter para `description`
+- deduplicacion por nombre con prioridad para skills locales del proyecto
+- seccion `# Skills` en el system prompt
+- tool `loadSkill` para cargar contenido completo bajo demanda
+- cap de 4000 caracteres para contenido cargado
+- skill de ejemplo `auth-patterns`
+
 ## Scripts
 
 Chatbot sin tools:

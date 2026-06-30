@@ -5,6 +5,7 @@ export interface PromptContext {
   gitBranch?: string;
   projectContext?: string;
   verificationCommands?: string[];
+  skills?: Array<{ name: string; description: string }>;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -72,6 +73,17 @@ When using todo, add the plan first, start exactly one item, complete it before 
 - Search before creating, and reuse existing patterns.
 - No new dependencies without asking.
 - Keep work scoped to the working directory unless the user explicitly asks otherwise.`);
+
+  if (ctx.skills?.length) {
+    const lines = ctx.skills
+      .map((skill) => `- ${skill.name}: ${skill.description}`)
+      .join("\n");
+
+    sections.push(`
+# Skills
+The following skills are available. Call \`loadSkill\` with the name to get full content.
+${lines}`);
+  }
 
   sections.push(`
 # Verification

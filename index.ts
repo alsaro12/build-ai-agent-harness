@@ -7,6 +7,7 @@ import { addCacheControl } from "./src/cache.js";
 import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
 import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
+import { discoverSkills, type Skill } from "./src/skills.js";
 import { buildSystemPrompt } from "./src/system.js";
 import { discoverGates } from "./src/verification.js";
 
@@ -32,6 +33,7 @@ console.error(`Sandbox: ${sandbox.type}`);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
 const MAX_BASH_CHARS = 5000;
+const MAX_SKILL_CHARS = 4000;
 const SAFE_PREFIXES = [
   "ls",
   "cat",
@@ -433,6 +435,38 @@ USAGE: add creates pending items, start marks one item in_progress, complete mar
   });
 }
 
+function createLoadSkillTool(skills: Skill[]) {
+  const byName = new Map(skills.map((skill) => [skill.name, skill]));
+
+  return tool({
+    description: `Load the full markdown content of an available skill.
+
+WHEN TO USE: the task touches a domain listed in the # Skills section, or the user explicitly asks to use a named skill.
+
+WHEN NOT TO USE: tasks unrelated to the listed skills, or when the skill name is not listed.
+
+DO NOT USE FOR: guessing unavailable skills, loading every skill preemptively, or replacing normal code search with unrelated guidance.
+
+USAGE: pass the exact skill name from # Skills. Output is capped at ${MAX_SKILL_CHARS} characters.`,
+    inputSchema: z.object({
+      name: z.string().describe("Skill name as listed in the Skills section"),
+    }),
+    execute: async ({ name }) => {
+      const skill = byName.get(name);
+
+      if (!skill) {
+        return `Unknown skill: ${name}`;
+      }
+
+      const content = readFileSync(skill.path, "utf-8");
+
+      return content.length > MAX_SKILL_CHARS
+        ? `${content.slice(0, MAX_SKILL_CHARS)}\n... (truncated at ${MAX_SKILL_CHARS} chars)`
+        : content;
+    },
+  });
+}
+
 function canSpawn(
   parentRole: string,
   subagentType: "explorer" | "executor",
@@ -566,19 +600,29 @@ const bash = createBashTool(sandbox, createApproval(approvalConfig));
 const task = createTaskTool(sandbox, { read, grep });
 const askUser = createAskUserTool();
 const todo = createTodoTool();
-const tools = { read, grep, bash, task, askUser, todo };
-const activeTools = noTools ? {} : tools;
 const agentsPath = join(cwd, "AGENTS.md");
 const projectContext = existsSync(agentsPath)
   ? readFileSync(agentsPath, "utf-8")
   : undefined;
 const verificationCommands = await discoverGates(sandbox);
+const skillDirs = [
+  join(cwd, "skills"),
+  join(process.env.HOME ?? "", ".harness", "skills"),
+];
+const skills = discoverSkills(skillDirs);
+const loadSkill = createLoadSkillTool(skills);
+const tools = { read, grep, bash, task, askUser, todo, loadSkill };
+const activeTools = noTools ? {} : tools;
 const instructions = buildSystemPrompt({
   workingDirectory: sandbox.workingDirectory,
   sandboxType: sandbox.type,
   toolNames: Object.keys(activeTools),
   projectContext,
   verificationCommands,
+  skills: skills.map((skill) => ({
+    name: skill.name,
+    description: skill.description,
+  })),
 });
 let stopped = false;
 
