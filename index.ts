@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { ToolLoopAgent, pruneMessages, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { addCacheControl } from "./src/cache.js";
@@ -9,26 +10,25 @@ import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
 import { buildSystemPrompt } from "./src/system.js";
 import { discoverGates } from "./src/verification.js";
 
-const args = process.argv.slice(2);
-const noTools = args.includes("--no-tools");
-const approvalArg = args.find((arg) => arg.startsWith("--approval="));
-const trustArg = args.find((arg) => arg.startsWith("--trust="));
-const filteredArgs = args.filter(
-  (arg) =>
-    arg !== "--no-tools" &&
-    !arg.startsWith("--approval=") &&
-    !arg.startsWith("--trust="),
-);
+const { values, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    "no-tools": { type: "boolean", default: false },
+    approval: { type: "string", default: "interactive" },
+    trust: { type: "string" },
+    sandbox: { type: "string", default: process.env.SANDBOX || "local" },
+    model: { type: "string", default: "anthropic/claude-haiku-4-5" },
+  },
+  allowPositionals: true,
+});
 
-const cwd = resolve(filteredArgs[0] || process.cwd());
-const prompt = filteredArgs.slice(1).join(" ") || "Hello!";
-const sandboxType = process.env.SANDBOX || "local";
-const sandbox =
-  sandboxType === "just-bash"
-    ? await createJustBashSandbox(cwd)
-    : createLocalSandbox(cwd);
+const noTools = Boolean(values["no-tools"]);
+const cwd = resolve(positionals[0] || process.cwd());
+const prompt = positionals.slice(1).join(" ") || "Hello!";
+const sandbox = await sandboxFromFlag(String(values.sandbox || "local"), cwd);
 const lifecycle: SandboxLifecycle = {};
 await lifecycle.afterStart?.(sandbox);
+console.error(`Sandbox: ${sandbox.type}`);
 const MAX_LINES = 500;
 const MAX_MATCHES = 50;
 const MAX_BASH_CHARS = 5000;
@@ -118,12 +118,21 @@ type ApprovalInput = {
 
 type NeedsApproval = (input: ApprovalInput) => boolean;
 
+async function sandboxFromFlag(name: string, dir: string): Promise<Sandbox> {
+  if (name === "just-bash") {
+    return createJustBashSandbox(dir);
+  }
+
+  return createLocalSandbox(dir);
+}
+
 function startsWithPrefix(command: string, prefix: string): boolean {
   return command === prefix || command.startsWith(`${prefix} `);
 }
 
 function parseApprovalConfig(): ApprovalConfig {
-  const mode = approvalArg?.slice("--approval=".length) || "interactive";
+  const mode =
+    typeof values.approval === "string" ? values.approval : "interactive";
 
   if (mode === "background") {
     return { mode };
@@ -131,8 +140,7 @@ function parseApprovalConfig(): ApprovalConfig {
 
   if (mode === "delegated") {
     const trust =
-      trustArg
-        ?.slice("--trust=".length)
+      (typeof values.trust === "string" ? values.trust : "")
         .split(",")
         .map((prefix) => prefix.trim())
         .filter(Boolean) || [];
@@ -557,9 +565,26 @@ const instructions = buildSystemPrompt({
   projectContext,
   verificationCommands,
 });
+let stopped = false;
+
+async function shutdown() {
+  if (stopped) {
+    return;
+  }
+
+  stopped = true;
+  await lifecycle.beforeStop?.(sandbox);
+  await sandbox.stop();
+}
+
+process.on("SIGINT", async () => {
+  console.error("\nShutting down...");
+  await shutdown();
+  process.exit(0);
+});
 
 const agent = new ToolLoopAgent({
-  model: "anthropic/claude-haiku-4-5",
+  model: String(values.model || "anthropic/claude-haiku-4-5"),
   instructions,
   tools: activeTools,
   stopWhen: stepCountIs(15),
@@ -594,6 +619,5 @@ try {
   console.error(`Agent run failed: ${message}`);
   process.exitCode = 1;
 } finally {
-  await lifecycle.beforeStop?.(sandbox);
-  await sandbox.stop();
+  await shutdown();
 }

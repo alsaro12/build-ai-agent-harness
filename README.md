@@ -286,6 +286,19 @@ Esta trigesimoprimera version implementa:
 - `verificationCommands` en el contexto del system prompt
 - contrato de claims acotados para distinguir fallas propias de fallas preexistentes
 
+## Lesson 32: CLI Entry Point
+
+Esta trigesimosegunda version implementa:
+
+- `parseArgs` para parsear flags y positionals
+- flag `--sandbox` con default `local`
+- flag `--model` con default `anthropic/claude-haiku-4-5`
+- positionals para `cwd` y prompt
+- helper `sandboxFromFlag(name, cwd)`
+- log de `Sandbox: <type>` en stderr
+- shutdown idempotente con `sandbox.stop()`
+- handler `SIGINT` que apaga el sandbox y sale limpio
+
 ## Scripts
 
 Chatbot sin tools:
@@ -313,7 +326,8 @@ pnpm agent . "List all files in this directory"
 pnpm agent . "Run the command: rm -rf node_modules"
 pnpm agent --approval=background . "Use the bash tool to run exactly this command: date"
 pnpm agent --approval=delegated --trust=date . "Use the bash tool to run exactly this command: date"
-SANDBOX=just-bash pnpm agent . "Read package.json"
+pnpm agent --sandbox=just-bash . "Read package.json"
+pnpm agent --model=anthropic/claude-haiku-4-5 . "Read package.json"
 ```
 
 Type-check:
