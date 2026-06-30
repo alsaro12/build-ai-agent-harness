@@ -18,6 +18,8 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 - Do NOT explain what you WOULD do. Actually do it.
 - Available tools: ${ctx.toolNames.join(", ")}
 - Prefer grep for searching across files and read for viewing known files.
+- Search before reading. Use grep first, then read only what you'll change.
+- Don't read files "just in case." Read what you need when you need it.
 - Use bash only for shell-command requests or tasks not covered by other tools.
 - If a requested command is unsafe, call bash with the exact command and report the block message honestly.`);
 

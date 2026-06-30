@@ -264,6 +264,16 @@ Esta vigesimonovena version implementa:
 - restriccion de un solo item `in_progress`
 - seccion `# Task Planning` en el system prompt
 
+## Lesson 30: Fast Context Understanding
+
+Esta trigesima version implementa:
+
+- politica grep-first en `# Agency`
+- busqueda antes de lectura cuando el archivo relevante no esta nombrado
+- lectura solo de archivos que se van a cambiar o inspeccionar con proposito
+- prohibicion de leer archivos "por si acaso"
+- preservacion del flujo directo a `read` cuando el usuario nombra un archivo especifico
+
 ## Scripts
 
 Chatbot sin tools:
