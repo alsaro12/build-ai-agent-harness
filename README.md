@@ -323,6 +323,18 @@ Esta trigesimoquinta version implementa:
 - cap de 4000 caracteres para contenido cargado
 - skill de ejemplo `auth-patterns`
 
+## Lesson 36: Custom Tools
+
+Esta trigesimosexta version implementa:
+
+- `src/registry.ts`
+- `createRegistry()` con `register`, `get`, `list` y `entries`
+- `registerBuiltins(...)` para registrar tools base
+- `wrapTool(base, hooks)` con `beforeExecute` y `afterExecute`
+- toolset del agente construido desde `Object.fromEntries(registry.entries())`
+- tool custom `now` para smoke tests
+- tool custom `deploy` en modo dry-run para demostrar registro sin ejecutar despliegues
+
 ## Scripts
 
 Chatbot sin tools:

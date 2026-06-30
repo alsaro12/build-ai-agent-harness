@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { ToolLoopAgent, pruneMessages, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { addCacheControl } from "./src/cache.js";
+import { createRegistry, registerBuiltins } from "./src/registry.js";
 import { createJustBashSandbox } from "./src/sandbox-just-bash.js";
 import { createLocalSandbox } from "./src/sandbox-local.js";
 import type { Sandbox, SandboxLifecycle } from "./src/sandbox.js";
@@ -467,6 +468,38 @@ USAGE: pass the exact skill name from # Skills. Output is capped at ${MAX_SKILL_
   });
 }
 
+const now = tool({
+  description: `Return the current timestamp.
+
+WHEN TO USE: the user asks for the current time, timestamp, or a custom-tool smoke test.
+
+WHEN NOT TO USE: date arithmetic, timezone conversions, or project inspection tasks.
+
+DO NOT USE FOR: replacing bash date commands when the user explicitly requested bash.`,
+  inputSchema: z.object({}),
+  execute: async () => new Date().toISOString(),
+});
+
+const deploy = tool({
+  description: `Prepare a deployment command without executing it.
+
+WHEN TO USE: the user asks what command would deploy to staging or production, or wants to verify custom tool registration.
+
+WHEN NOT TO USE: actually deploying a project, running build checks, or testing changes.
+
+DO NOT USE FOR: real deployments. This tool does not execute deployment commands.`,
+  inputSchema: z.object({
+    environment: z
+      .enum(["staging", "production"])
+      .describe("Target deployment environment"),
+  }),
+  execute: async ({ environment }) => {
+    const target = environment === "production" ? "production" : "preview";
+
+    return `Prepared deploy command: vercel deploy --target=${target}\nNot executed.`;
+  },
+});
+
 function canSpawn(
   parentRole: string,
   subagentType: "explorer" | "executor",
@@ -611,12 +644,16 @@ const skillDirs = [
 ];
 const skills = discoverSkills(skillDirs);
 const loadSkill = createLoadSkillTool(skills);
-const tools = { read, grep, bash, task, askUser, todo, loadSkill };
+const registry = createRegistry();
+registerBuiltins(registry, { read, grep, bash, task, askUser, todo, loadSkill });
+registry.register("now", now);
+registry.register("deploy", deploy);
+const tools = Object.fromEntries(registry.entries());
 const activeTools = noTools ? {} : tools;
 const instructions = buildSystemPrompt({
   workingDirectory: sandbox.workingDirectory,
   sandboxType: sandbox.type,
-  toolNames: Object.keys(activeTools),
+  toolNames: noTools ? [] : registry.list(),
   projectContext,
   verificationCommands,
   skills: skills.map((skill) => ({
